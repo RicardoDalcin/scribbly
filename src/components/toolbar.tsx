@@ -1,48 +1,138 @@
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
+import { useEngine } from '@/stores/engine';
 import {
-  PointerIcon,
+  MousePointerIcon,
   SquareIcon,
   DiamondIcon,
   CircleIcon,
   MoveRightIcon,
   MinusIcon,
   PencilIcon,
-} from "lucide-react";
+} from 'lucide-react';
+import { useHotkeys } from 'react-hotkeys-hook';
 
 function ToolbarButton({
   icon: Icon,
   onClick,
-  shortcut = "",
+  shortcut = '',
   active = false,
+  fillOnActive,
 }: {
-  icon: React.ForwardRefExoticComponent<{ className: string }>;
+  icon: React.ForwardRefExoticComponent<{
+    size?: number;
+    className?: string;
+    strokeWidth?: number;
+    fill?: string;
+  }>;
   onClick: () => void;
   shortcut?: string;
   active?: boolean;
+  fillOnActive?: boolean;
 }) {
+  useHotkeys(shortcut || [], onClick);
+
   return (
     <button
-      onPointerDown={onClick}
-      className={cn("flex items-center justify-center size-8 rounded-md", {
-        "hover:bg-indigo-200 active:outline active:outline-indigo-500": !active,
-        "bg-indigo-300": active,
-      })}
+      onClick={onClick}
+      className={cn(
+        'flex items-center justify-center size-9 rounded-md relative',
+        'active:outline active:outline-indigo-500 focus:outline-transparent',
+        {
+          'hover:bg-indigo-50': !active,
+          'bg-indigo-100': active,
+        }
+      )}
     >
-      <Icon className="size-5 text-indigo-950" />
+      <Icon
+        className={cn({
+          'text-indigo-950': active,
+          'text-neutral-900': !active,
+        })}
+        size={16}
+        fill={
+          active && fillOnActive ? 'var(--color-indigo-950)' : 'transparent'
+        }
+      />
+
+      {shortcut && (
+        <span
+          className={cn('absolute bottom-1 right-1 text-[9px] leading-none', {
+            'text-indigo-950/80': active,
+            'text-neutral-400/80': !active,
+          })}
+        >
+          {shortcut}
+        </span>
+      )}
     </button>
   );
 }
 
 export function Toolbar() {
+  const { tool, changeTool } = useEngine();
+
   return (
-    <div className="flex items-center px-3 gap-2 h-12 shrink-0">
-      <ToolbarButton icon={PointerIcon} onClick={() => {}} active />
-      <ToolbarButton icon={SquareIcon} onClick={() => {}} />
-      <ToolbarButton icon={DiamondIcon} onClick={() => {}} />
-      <ToolbarButton icon={CircleIcon} onClick={() => {}} />
-      <ToolbarButton icon={MoveRightIcon} onClick={() => {}} />
-      <ToolbarButton icon={MinusIcon} onClick={() => {}} />
-      <ToolbarButton icon={PencilIcon} onClick={() => {}} />
+    <div className="flex items-center px-1 gap-1 h-11 shrink-0">
+      <ToolbarButton
+        fillOnActive
+        icon={MousePointerIcon}
+        onClick={() => {
+          changeTool('select');
+        }}
+        active={tool === 'select'}
+        shortcut="1"
+      />
+      <ToolbarButton
+        fillOnActive
+        icon={SquareIcon}
+        onClick={() => {
+          changeTool('rectangle');
+        }}
+        active={tool === 'rectangle'}
+        shortcut="2"
+      />
+      <ToolbarButton
+        fillOnActive
+        icon={DiamondIcon}
+        onClick={() => {
+          changeTool('diamond');
+        }}
+        active={tool === 'diamond'}
+        shortcut="3"
+      />
+      <ToolbarButton
+        fillOnActive
+        icon={CircleIcon}
+        onClick={() => {
+          changeTool('ellipse');
+        }}
+        active={tool === 'ellipse'}
+        shortcut="4"
+      />
+      <ToolbarButton
+        icon={MoveRightIcon}
+        onClick={() => {
+          changeTool('arrow');
+        }}
+        active={tool === 'arrow'}
+        shortcut="5"
+      />
+      <ToolbarButton
+        icon={MinusIcon}
+        onClick={() => {
+          changeTool('line');
+        }}
+        active={tool === 'line'}
+        shortcut="6"
+      />
+      <ToolbarButton
+        icon={PencilIcon}
+        onClick={() => {
+          changeTool('draw');
+        }}
+        active={tool === 'draw'}
+        shortcut="7"
+      />
     </div>
   );
 }
