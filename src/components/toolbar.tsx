@@ -69,7 +69,7 @@ function ToolbarButton({
 }
 
 export function Toolbar() {
-  const { tool, changeTool } = useEngine();
+  const { editorMode, changeEditorMode } = useEngine();
 
   return (
     <div className="flex items-center px-1 gap-1 h-11 shrink-0">
@@ -77,60 +77,60 @@ export function Toolbar() {
         fillOnActive
         icon={MousePointerIcon}
         onClick={() => {
-          changeTool('select');
+          changeEditorMode('select');
         }}
-        active={tool === 'select'}
+        active={editorMode === 'select'}
         shortcut="1"
       />
       <ToolbarButton
         fillOnActive
         icon={SquareIcon}
         onClick={() => {
-          changeTool('rectangle');
+          changeEditorMode('rectangle');
         }}
-        active={tool === 'rectangle'}
+        active={editorMode === 'rectangle'}
         shortcut="2"
       />
       <ToolbarButton
         fillOnActive
         icon={DiamondIcon}
         onClick={() => {
-          changeTool('diamond');
+          changeEditorMode('diamond');
         }}
-        active={tool === 'diamond'}
+        active={editorMode === 'diamond'}
         shortcut="3"
       />
       <ToolbarButton
         fillOnActive
         icon={CircleIcon}
         onClick={() => {
-          changeTool('ellipse');
+          changeEditorMode('ellipse');
         }}
-        active={tool === 'ellipse'}
+        active={editorMode === 'ellipse'}
         shortcut="4"
       />
       <ToolbarButton
         icon={MoveRightIcon}
         onClick={() => {
-          changeTool('arrow');
+          changeEditorMode('arrow');
         }}
-        active={tool === 'arrow'}
+        active={editorMode === 'arrow'}
         shortcut="5"
       />
       <ToolbarButton
         icon={MinusIcon}
         onClick={() => {
-          changeTool('line');
+          changeEditorMode('line');
         }}
-        active={tool === 'line'}
+        active={editorMode === 'line'}
         shortcut="6"
       />
       <ToolbarButton
         icon={PencilIcon}
         onClick={() => {
-          changeTool('draw');
+          changeEditorMode('draw');
         }}
-        active={tool === 'draw'}
+        active={editorMode === 'draw'}
         shortcut="7"
       />
     </div>

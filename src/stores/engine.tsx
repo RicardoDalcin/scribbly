@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { GraphicEngine } from '@/engine/GraphicEngine';
-import type { Tool } from '@/engine/types';
+import type { EditorMode } from '@/engine/types';
 import {
   createContext,
   useCallback,
@@ -11,18 +11,18 @@ import {
 
 type EngineContext = {
   initialize: (canvas: HTMLCanvasElement, container: HTMLElement) => void;
-  tool: Tool;
-  changeTool: (newTool: Tool) => void;
+  editorMode: EditorMode;
+  changeEditorMode: (newEditorMode: EditorMode) => void;
 };
 
 const context = createContext<EngineContext>({
   initialize: () => {},
-  tool: 'select',
-  changeTool: () => {},
+  editorMode: 'select',
+  changeEditorMode: () => {},
 });
 
 const EngineProvider = ({ children }: { children: React.ReactNode }) => {
-  const [tool, setTool] = useState<Tool>('select');
+  const [editorMode, setEditorMode] = useState<EditorMode>('select');
   const engine = useRef<GraphicEngine | null>(null);
 
   const initialize = useCallback(
@@ -32,20 +32,17 @@ const EngineProvider = ({ children }: { children: React.ReactNode }) => {
     []
   );
 
-  const changeTool = useCallback(
-    (newTool: Tool) => {
-      if (!engine.current) {
-        return;
-      }
+  const changeEditorMode = useCallback((newEditorMode: EditorMode) => {
+    if (!engine.current) {
+      return;
+    }
 
-      setTool(newTool);
-      engine.current.changeTool(newTool);
-    },
-    [setTool]
-  );
+    setEditorMode(newEditorMode);
+    engine.current.changeEditorMode(newEditorMode);
+  }, []);
 
   return (
-    <context.Provider value={{ initialize, tool, changeTool }}>
+    <context.Provider value={{ initialize, editorMode, changeEditorMode }}>
       {children}
     </context.Provider>
   );
