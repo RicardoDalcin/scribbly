@@ -13,21 +13,43 @@ type EngineContext = {
   initialize: (canvas: HTMLCanvasElement, container: HTMLElement) => void;
   editorMode: EditorMode;
   changeEditorMode: (newEditorMode: EditorMode) => void;
+  isDragging: boolean;
+  zoom: number;
+  changeZoom: (newZoom: number) => void;
 };
 
 const context = createContext<EngineContext>({
   initialize: () => {},
   editorMode: 'select',
   changeEditorMode: () => {},
+  isDragging: false,
+  zoom: 1,
+  changeZoom: () => {},
 });
 
 const EngineProvider = ({ children }: { children: React.ReactNode }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [editorMode, setEditorMode] = useState<EditorMode>('select');
   const engine = useRef<GraphicEngine | null>(null);
 
   const initialize = useCallback(
     (canvas: HTMLCanvasElement, container: HTMLElement) => {
-      engine.current = new GraphicEngine(canvas, container);
+      engine.current = new GraphicEngine(canvas, container, {
+        onChangeEditorMode: (newEditorMode: EditorMode) => {
+          setEditorMode(newEditorMode);
+        },
+        onChangeIsDragging: (isDragging: boolean) => {
+          setIsDragging(isDragging);
+        },
+        onChangeZoom: (newZoom: number) => {
+          setZoom(newZoom);
+        },
+      });
+
+      return () => {
+        engine.current?.destroy();
+      };
     },
     []
   );
@@ -37,12 +59,28 @@ const EngineProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    setEditorMode(newEditorMode);
     engine.current.changeEditorMode(newEditorMode);
   }, []);
 
+  const changeZoom = useCallback((newZoom: number) => {
+    if (!engine.current) {
+      return;
+    }
+
+    engine.current.setZoom(newZoom);
+  }, []);
+
   return (
-    <context.Provider value={{ initialize, editorMode, changeEditorMode }}>
+    <context.Provider
+      value={{
+        initialize,
+        editorMode,
+        changeEditorMode,
+        isDragging,
+        zoom,
+        changeZoom,
+      }}
+    >
       {children}
     </context.Provider>
   );

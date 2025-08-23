@@ -1,17 +1,17 @@
-import type { Vec2 } from "../math/matrix";
-import { DrawableTypes } from ".";
-import type { RoughCanvas } from "roughjs/bin/canvas";
+import type { Vec2 } from '../math/matrix';
+import { DrawableTypes } from '.';
+import type { RoughCanvas } from 'roughjs/bin/canvas';
 
 export class Rect {
-  type = "rect";
+  type = 'rect';
 
   position: Vec2;
   width: number;
   height: number;
 
   style: {
-    stroke: string;
-    background: string;
+    stroke: string | null;
+    background: string | null;
     fillStyle: DrawableTypes.FillStyle;
     strokeWidth: DrawableTypes.StrokeWidth;
     sloppiness: DrawableTypes.Sloppiness;
@@ -27,9 +27,9 @@ export class Rect {
     this.height = height;
 
     this.style = {
-      stroke: "black",
-      background: "white",
-      fillStyle: DrawableTypes.FillStyle.Solid,
+      stroke: 'black',
+      background: null,
+      fillStyle: DrawableTypes.FillStyle.Hachure,
       strokeWidth: DrawableTypes.StrokeWidth.Medium,
       sloppiness: DrawableTypes.Sloppiness.Medium,
       edges: DrawableTypes.Edges.Right,
@@ -44,9 +44,9 @@ export class Rect {
       this.width,
       this.height,
       {
-        fill: this.style.background,
+        fill: this.style.background ?? 'transparent',
         fillStyle: this.style.fillStyle,
-        stroke: this.style.stroke,
+        stroke: this.style.stroke ?? 'transparent',
         strokeWidth: DrawableTypes.StrokeWidthValues[this.style.strokeWidth],
         seed: this.seed,
       }

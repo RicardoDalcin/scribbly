@@ -1,10 +1,16 @@
-import type { RoughCanvas } from "roughjs/bin/canvas";
-import { Camera } from "./entities/Camera";
-import { Vec2 } from "./math/matrix";
-import type { EditorMode } from "./types";
-import rough from "roughjs";
-import type { Drawable } from "./drawables";
-import { Rect } from "./drawables/rect";
+import type { RoughCanvas } from 'roughjs/bin/canvas';
+import { Camera } from './entities/Camera';
+import { Vec2 } from './math/matrix';
+import type { EditorMode } from './types';
+import rough from 'roughjs';
+import type { Drawable } from './drawables';
+import { Rect } from './drawables/rect';
+
+type EngineCallbacks = {
+  onChangeEditorMode: (newEditorMode: EditorMode) => void;
+  onChangeIsDragging: (isDragging: boolean) => void;
+  onChangeZoom: (newZoom: number) => void;
+};
 
 export class GraphicEngine {
   private canvas: HTMLCanvasElement;
@@ -12,22 +18,30 @@ export class GraphicEngine {
   private container: HTMLElement;
   private roughCanvas: RoughCanvas;
 
-  private isMouseDown = false;
+  private callbacks: EngineCallbacks;
+
+  private _isDragging = false;
+  private mouseDownButton: 'left' | 'middle' | 'right' | null = null;
   private mouseDownPosition: Vec2 | null = null;
-  private editorMode: EditorMode = "select";
+  private _editorMode: EditorMode = 'select';
   private camera: Camera;
 
   private objects = new Map<string, Drawable>();
 
   private _destroy = () => {};
 
-  constructor(canvas: HTMLCanvasElement, container: HTMLElement) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    container: HTMLElement,
+    callbacks: EngineCallbacks
+  ) {
     this.canvas = canvas;
     this.container = container;
-    const ctx = canvas.getContext("2d");
+    this.callbacks = callbacks;
+    const ctx = canvas.getContext('2d');
 
     if (!ctx) {
-      throw new Error("Canvas context is not available");
+      throw new Error('Canvas context is not available');
     }
 
     this.ctx = ctx;
@@ -49,22 +63,54 @@ export class GraphicEngine {
   }
 
   private draw() {
+    this.ctx.save();
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.camera.adjustRender(this.ctx);
     this.objects.forEach((object) => {
       return object.draw(this.roughCanvas);
     });
+    this.ctx.restore();
+  }
+
+  private get isDragging() {
+    return this._isDragging;
+  }
+
+  private set isDragging(value: boolean) {
+    this._isDragging = value;
+    this.callbacks.onChangeIsDragging(value);
+  }
+
+  private get editorMode() {
+    return this._editorMode;
+  }
+
+  private set editorMode(value: EditorMode) {
+    this._editorMode = value;
+    this.callbacks.onChangeEditorMode(value);
   }
 
   public zoomIn() {
     this.camera.zoomIn();
+    this.callbacks.onChangeZoom(this.camera.getZoom());
+    this.draw();
   }
 
   public zoomOut() {
     this.camera.zoomOut();
+    this.callbacks.onChangeZoom(this.camera.getZoom());
+    this.draw();
+  }
+
+  public setZoom(newZoom: number) {
+    this.camera.setZoom(newZoom);
+    this.callbacks.onChangeZoom(newZoom);
+    this.draw();
   }
 
   public pan(delta: Vec2) {
     this.camera.pan(delta);
+    this.draw();
   }
 
   public changeEditorMode(newMode: EditorMode) {
@@ -83,27 +129,21 @@ export class GraphicEngine {
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
 
-    this.canvas.style.width = width + "px";
-    this.canvas.style.height = height + "px";
+    this.canvas.style.width = width + 'px';
+    this.canvas.style.height = height + 'px';
     this.canvas.width = width * window.devicePixelRatio;
     this.canvas.height = height * window.devicePixelRatio;
     this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
   }
 
-  private getMouseEvent(e: MouseEvent) {
-    const BUTTON_TYPES = ["left", "middle", "right"] as const;
-    const button = BUTTON_TYPES[e.button];
-    const isMacOS = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  private getKeyboardEvent(e: KeyboardEvent) {
+    const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const ctrlKey = isMacOS ? e.metaKey : e.ctrlKey;
     const shiftKey = e.shiftKey;
-
-    const x = e.clientX - this.canvas.offsetLeft;
-    const y = e.clientY - this.canvas.offsetTop;
-    const position = Vec2.create(x, y);
+    const key = e.key;
 
     return {
-      button,
-      position,
+      key,
       modifiers: {
         ctrlKey,
         shiftKey,
@@ -111,40 +151,146 @@ export class GraphicEngine {
     };
   }
 
+  private getMouseEvent(e: MouseEvent) {
+    const BUTTON_TYPES = ['left', 'middle', 'right'] as const;
+    const button = BUTTON_TYPES[e.button];
+    const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const ctrlKey = isMacOS ? e.metaKey : e.ctrlKey;
+    const shiftKey = e.shiftKey;
+
+    const x = e.clientX - this.canvas.offsetLeft;
+    const y = e.clientY - this.canvas.offsetTop;
+    const position = Vec2.create(x, y);
+    const movement = Vec2.create(e.movementX, e.movementY);
+
+    return {
+      button,
+      position,
+      movement,
+      modifiers: {
+        ctrlKey,
+        shiftKey,
+      },
+    };
+  }
+
+  private getWheelEvent(e: WheelEvent) {
+    const direction = e.deltaY > 0 ? 'down' : 'up';
+    const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const ctrlKey = isMacOS ? e.metaKey : e.ctrlKey;
+    const shiftKey = e.shiftKey;
+
+    return {
+      direction,
+      modifiers: {
+        ctrlKey,
+        shiftKey,
+      },
+    };
+  }
+
+  private onKeyDown(event: KeyboardEvent) {
+    const options = this.getKeyboardEvent(event);
+
+    if (this.mouseDownButton) {
+      return;
+    }
+
+    if (options.key === ' ' && !options.modifiers.ctrlKey) {
+      event.preventDefault();
+      this.isDragging = true;
+    }
+  }
+
+  private onKeyUp(event: KeyboardEvent) {
+    const options = this.getKeyboardEvent(event);
+
+    if (options.key === ' ') {
+      event.preventDefault();
+      this.isDragging = false;
+    }
+  }
+
   private onMouseDown(e: MouseEvent) {
     const options = this.getMouseEvent(e);
 
-    if (options.button === "right") {
-      return;
-    }
-
-    if (options.button === "middle") {
-      return;
-    }
-
-    this.isMouseDown = true;
+    this.mouseDownButton = options.button;
     this.mouseDownPosition = options.position;
+
+    if (options.button === 'right') {
+      return;
+    }
+
+    if (options.button === 'middle') {
+      return;
+    }
   }
 
-  private onMouseMove(e: MouseEvent) {}
+  private onMouseMove(e: MouseEvent) {
+    if (!this.mouseDownButton) {
+      return;
+    }
+
+    const options = this.getMouseEvent(e);
+
+    if (this.mouseDownButton === 'right') {
+      return;
+    }
+
+    if (this.mouseDownButton === 'middle') {
+      return;
+    }
+
+    if (this.isDragging) {
+      this.camera.pan(options.movement);
+      this.draw();
+      return;
+    }
+  }
 
   private onMouseUp(e: MouseEvent) {
     const options = this.getMouseEvent(e);
 
-    if (options.button === "right") {
+    if (options.button !== this.mouseDownButton) {
       return;
     }
 
-    if (options.button === "middle") {
+    this.mouseDownButton = null;
+    this.mouseDownPosition = null;
+
+    if (options.button === 'right') {
       return;
     }
 
-    // const position = this.camera.getWorldPosition(options.position);
+    if (options.button === 'middle') {
+      return;
+    }
+
+    if (this.isDragging) {
+      return;
+    }
+
+    const position = this.camera.viewportToWorld(options.position);
+
     this.objects.set(
       this.uid(),
-      new Rect(Vec2.create(options.position.x, options.position.y), 50, 50)
+      new Rect(Vec2.create(position.x, position.y), 50, 50)
     );
     this.draw();
+  }
+
+  private onWheel(e: WheelEvent) {
+    const options = this.getWheelEvent(e);
+
+    if (options.modifiers.ctrlKey) {
+      e.preventDefault();
+
+      if (options.direction === 'up') {
+        this.zoomIn();
+      } else {
+        this.zoomOut();
+      }
+    }
   }
 
   private setupEvents() {
@@ -152,31 +298,46 @@ export class GraphicEngine {
       this.resize();
     };
 
+    const onKeyDown = (e: KeyboardEvent) => {
+      this.onKeyDown(e);
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      this.onKeyUp(e);
+    };
+
     const onMouseDown = (e: MouseEvent) => {
-      e.preventDefault();
       this.onMouseDown(e);
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      e.preventDefault();
       this.onMouseMove(e);
     };
 
     const onMouseUp = (e: MouseEvent) => {
-      e.preventDefault();
       this.onMouseUp(e);
     };
 
-    window.addEventListener("resize", onResize);
-    this.canvas.addEventListener("mousedown", onMouseDown);
-    this.canvas.addEventListener("mousemove", onMouseMove);
-    this.canvas.addEventListener("mouseup", onMouseUp);
+    const onWheel = (e: WheelEvent) => {
+      this.onWheel(e);
+    };
+
+    window.addEventListener('resize', onResize);
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('wheel', onWheel, { passive: false });
+    this.canvas.addEventListener('mousedown', onMouseDown);
+    this.canvas.addEventListener('mousemove', onMouseMove);
+    this.canvas.addEventListener('mouseup', onMouseUp);
 
     return () => {
-      window.removeEventListener("resize", onResize);
-      this.canvas.removeEventListener("mousedown", onMouseDown);
-      this.canvas.removeEventListener("mousemove", onMouseMove);
-      this.canvas.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('wheel', onWheel);
+      this.canvas.removeEventListener('mousedown', onMouseDown);
+      this.canvas.removeEventListener('mousemove', onMouseMove);
+      this.canvas.removeEventListener('mouseup', onMouseUp);
     };
   }
 }
