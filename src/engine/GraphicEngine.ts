@@ -10,6 +10,7 @@ type EngineCallbacks = {
   onChangeEditorMode: (newEditorMode: EditorMode) => void;
   onChangeIsDragging: (isDragging: boolean) => void;
   onChangeZoom: (newZoom: number) => void;
+  onChangeSelectedObject: (newSelectedObject: Drawable | null) => void;
 };
 
 export class GraphicEngine {
@@ -115,6 +116,21 @@ export class GraphicEngine {
 
   public changeEditorMode(newMode: EditorMode) {
     this.editorMode = newMode;
+  }
+
+  public changeObjectStyle(
+    objectId: string,
+    newStyle: Partial<Drawable['style']>
+  ) {
+    const object = this.objects.get(objectId);
+
+    if (!object) {
+      return;
+    }
+
+    object.style = { ...object.style, ...newStyle };
+    this.callbacks.onChangeSelectedObject(object);
+    this.draw();
   }
 
   public destroy() {
@@ -272,10 +288,10 @@ export class GraphicEngine {
 
     const position = this.camera.viewportToWorld(options.position);
 
-    this.objects.set(
-      this.uid(),
-      new Rect(Vec2.create(position.x, position.y), 50, 50)
-    );
+    const newId = this.uid();
+    const object = new Rect(newId, Vec2.create(position.x, position.y), 50, 50);
+    this.objects.set(newId, object);
+    this.callbacks.onChangeSelectedObject(object);
     this.draw();
   }
 

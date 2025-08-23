@@ -1,15 +1,15 @@
-export type FillStyle = "hachure" | "cross-hatch" | "solid";
+export type FillStyle = 'hachure' | 'cross-hatch' | 'solid';
 export const FillStyle: Record<string, FillStyle> = {
-  Hachure: "hachure",
-  CrossHatch: "cross-hatch",
-  Solid: "solid",
+  Hachure: 'hachure',
+  CrossHatch: 'cross-hatch',
+  Solid: 'solid',
 };
 
-export type StrokeWidth = "thin" | "medium" | "thick";
+export type StrokeWidth = 'thin' | 'medium' | 'thick';
 export const StrokeWidth: Record<string, StrokeWidth> = {
-  Thin: "thin",
-  Medium: "medium",
-  Thick: "thick",
+  Thin: 'thin',
+  Medium: 'medium',
+  Thick: 'thick',
 };
 export const StrokeWidthValues: Record<StrokeWidth, number> = {
   thin: 1,
@@ -17,15 +17,22 @@ export const StrokeWidthValues: Record<StrokeWidth, number> = {
   thick: 3,
 };
 
-export type Sloppiness = "low" | "medium" | "high";
-export const Sloppiness: Record<string, Sloppiness> = {
-  Low: "low",
-  Medium: "medium",
-  High: "high",
+export type StrokeStyle = 'solid' | 'dashed' | 'dotted';
+export const StrokeStyle: Record<string, StrokeStyle> = {
+  Solid: 'solid',
+  Dashed: 'dashed',
+  Dotted: 'dotted',
 };
 
-export type Edges = "right" | "angle";
+export type Sloppiness = 'low' | 'medium' | 'high';
+export const Sloppiness: Record<string, Sloppiness> = {
+  Low: 'low',
+  Medium: 'medium',
+  High: 'high',
+};
+
+export type Edges = 'right' | 'angle';
 export const Edges: Record<string, Edges> = {
-  Right: "right",
-  Angle: "angle",
+  Right: 'right',
+  Angle: 'angle',
 };

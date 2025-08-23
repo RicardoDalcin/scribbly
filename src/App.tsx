@@ -3,13 +3,14 @@ import { Toolbar } from './components/toolbar';
 import { useEngine } from './stores/engine';
 import { cn } from './lib/utils';
 import { ZoomControls } from './components/zoom-controls';
+import { LayerControls } from './components/layer-controls';
 
 function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hasInitialized = useRef(false);
 
-  const { initialize, isDragging } = useEngine();
+  const { initialize, isDragging, selectedObject } = useEngine();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,6 +46,12 @@ function App() {
       <div className="absolute bottom-4 left-4">
         <ZoomControls />
       </div>
+
+      {selectedObject && (
+        <div className="absolute top-20 left-4 shadow-sm shadow-black/5 border border-neutral-200/80 rounded-xl bg-white/90 backdrop-blur-lg">
+          <LayerControls />
+        </div>
+      )}
     </div>
   );
 }

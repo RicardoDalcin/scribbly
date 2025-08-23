@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import type { Drawable } from '@/engine/drawables';
 import { GraphicEngine } from '@/engine/GraphicEngine';
 import type { EditorMode } from '@/engine/types';
 import {
@@ -16,6 +17,12 @@ type EngineContext = {
   isDragging: boolean;
   zoom: number;
   changeZoom: (newZoom: number) => void;
+  selectedObject: Drawable | null;
+  objectStyle: Drawable['style'] | null;
+  changeObjectStyle: (
+    objectId: string,
+    newStyle: Partial<Drawable['style']>
+  ) => void;
 };
 
 const context = createContext<EngineContext>({
@@ -25,12 +32,19 @@ const context = createContext<EngineContext>({
   isDragging: false,
   zoom: 1,
   changeZoom: () => {},
+  selectedObject: null,
+  objectStyle: null,
+  changeObjectStyle: () => {},
 });
 
 const EngineProvider = ({ children }: { children: React.ReactNode }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [editorMode, setEditorMode] = useState<EditorMode>('select');
+  const [selectedObject, setSelectedObject] = useState<Drawable | null>(null);
+  const [objectStyle, setObjectStyle] = useState<Drawable['style'] | null>(
+    null
+  );
   const engine = useRef<GraphicEngine | null>(null);
 
   const initialize = useCallback(
@@ -44,6 +58,11 @@ const EngineProvider = ({ children }: { children: React.ReactNode }) => {
         },
         onChangeZoom: (newZoom: number) => {
           setZoom(newZoom);
+        },
+        onChangeSelectedObject: (newSelectedObject: Drawable | null) => {
+          console.log('asdasd', newSelectedObject);
+          setSelectedObject(newSelectedObject);
+          setObjectStyle(newSelectedObject?.style ?? null);
         },
       });
 
@@ -70,6 +89,17 @@ const EngineProvider = ({ children }: { children: React.ReactNode }) => {
     engine.current.setZoom(newZoom);
   }, []);
 
+  const changeObjectStyle = useCallback(
+    (objectId: string, newStyle: Partial<Drawable['style']>) => {
+      if (!engine.current) {
+        return;
+      }
+
+      engine.current.changeObjectStyle(objectId, newStyle);
+    },
+    []
+  );
+
   return (
     <context.Provider
       value={{
@@ -79,6 +109,9 @@ const EngineProvider = ({ children }: { children: React.ReactNode }) => {
         isDragging,
         zoom,
         changeZoom,
+        selectedObject,
+        objectStyle,
+        changeObjectStyle,
       }}
     >
       {children}
