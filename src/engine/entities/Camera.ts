@@ -20,7 +20,10 @@ export class Camera {
   }
 
   public pan(delta: Vec2) {
-    this.position = Vec2.add(this.position, delta);
+    this.position = Vec2.add(
+      this.position,
+      Vec2.mulScalar(delta, 1 / this.zoom)
+    );
   }
 
   private round(num: number) {
