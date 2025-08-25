@@ -178,6 +178,8 @@ export class GraphicEngine {
     this.canvas.width = width * window.devicePixelRatio;
     this.canvas.height = height * window.devicePixelRatio;
     this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+    this.requestRedraw();
   }
 
   private getKeyboardEvent(e: KeyboardEvent) {
