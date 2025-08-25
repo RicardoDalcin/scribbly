@@ -273,6 +273,14 @@ export class GraphicEngine {
     }
   }
 
+  private makeRectangle(position: Vec2, width: number, height: number) {
+    const newId = this.uid();
+    const object = new Rect(newId, position, width, height);
+    this.objects.set(newId, object);
+    this.callbacks.onChangeSelectedObject(object);
+    return object;
+  }
+
   private onMouseMove(e: MouseEvent) {
     if (!this.mouseDown) {
       return;
@@ -295,15 +303,28 @@ export class GraphicEngine {
 
     if (this.editorMode === 'rectangle') {
       const position = this.camera.viewportToWorld(options.position);
-      const distance = Vec2.distance(position, this.mouseDown.position);
+      const mouseDownPosition = this.camera.viewportToWorld(
+        this.mouseDown.position
+      );
+      const distance = Vec2.distance(position, mouseDownPosition);
+
+      const width = Math.abs(mouseDownPosition.x - position.x);
+      const height = Math.abs(mouseDownPosition.y - position.y);
 
       if (!this.createdObject) {
         if (distance < 10) {
           return;
         }
 
-        // this.makeRectangle();
+        this.createdObject = this.makeRectangle(position, width, height);
+      } else {
+        const width = Math.abs(mouseDownPosition.x - position.x);
+        const height = Math.abs(mouseDownPosition.y - position.y);
+        this.createdObject.width = width;
+        this.createdObject.height = height;
       }
+
+      this.requestRedraw();
     }
   }
 
@@ -328,13 +349,10 @@ export class GraphicEngine {
       return;
     }
 
-    const position = this.camera.viewportToWorld(options.position);
-
-    const newId = this.uid();
-    const object = new Rect(newId, Vec2.create(position.x, position.y), 50, 50);
-    this.objects.set(newId, object);
-    this.callbacks.onChangeSelectedObject(object);
-    this.requestRedraw();
+    if (this.editorMode === 'rectangle') {
+      this.createdObject = null;
+      return;
+    }
   }
 
   private onWheel(e: WheelEvent) {
