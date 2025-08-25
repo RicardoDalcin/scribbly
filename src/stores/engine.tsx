@@ -60,7 +60,6 @@ const EngineProvider = ({ children }: { children: React.ReactNode }) => {
           setZoom(newZoom);
         },
         onChangeSelectedObject: (newSelectedObject: Drawable | null) => {
-          console.log('asdasd', newSelectedObject);
           setSelectedObject(newSelectedObject);
           setObjectStyle(newSelectedObject?.style ?? null);
         },

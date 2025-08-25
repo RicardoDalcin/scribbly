@@ -1,8 +1,21 @@
 import { DrawableTypes } from '@/engine/drawables';
 import { cn } from '@/lib/utils';
 import { useEngine } from '@/stores/engine';
-import { SquareIcon } from 'lucide-react';
 import React, { useMemo } from 'react';
+import {
+  FillCrossHatchIcon,
+  FillHachureIcon,
+  FillSolidIcon,
+  SloppinessArchitectIcon,
+  SloppinessArtistIcon,
+  SloppinessCartoonistIcon,
+  StrokeStyleDashedIcon,
+  StrokeStyleDottedIcon,
+  StrokeStyleSolidIcon,
+  StrokeWidthBaseIcon,
+  StrokeWidthBoldIcon,
+  StrokeWidthExtraBoldIcon,
+} from './icons';
 
 function PropertyGroup({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col gap-2">{children}</div>;
@@ -78,7 +91,7 @@ function PropertyRadio<Option>({
 }: {
   options: {
     value: Option;
-    icon: React.ForwardRefExoticComponent<{ className: string }>;
+    icon: React.JSX.Element;
   }[];
   value: Option;
   onChange: (newValue: Option) => void;
@@ -97,7 +110,7 @@ function PropertyRadio<Option>({
             }
           )}
         >
-          <Icon className="size-4" />
+          <div className="size-4">{Icon}</div>
         </button>
       ))}
     </div>
@@ -166,15 +179,15 @@ export function LayerControls() {
             options={[
               {
                 value: DrawableTypes.FillStyle.Hachure,
-                icon: SquareIcon,
+                icon: FillHachureIcon,
               },
               {
                 value: DrawableTypes.FillStyle.CrossHatch,
-                icon: SquareIcon,
+                icon: FillCrossHatchIcon,
               },
               {
                 value: DrawableTypes.FillStyle.Solid,
-                icon: SquareIcon,
+                icon: FillSolidIcon,
               },
             ]}
             value={style.fillStyle}
@@ -196,15 +209,15 @@ export function LayerControls() {
           options={[
             {
               value: DrawableTypes.StrokeWidth.Thin,
-              icon: SquareIcon,
+              icon: StrokeWidthBaseIcon,
             },
             {
               value: DrawableTypes.StrokeWidth.Medium,
-              icon: SquareIcon,
+              icon: StrokeWidthBoldIcon,
             },
             {
               value: DrawableTypes.StrokeWidth.Thick,
-              icon: SquareIcon,
+              icon: StrokeWidthExtraBoldIcon,
             },
           ]}
           value={style.strokeWidth}
@@ -225,15 +238,15 @@ export function LayerControls() {
           options={[
             {
               value: DrawableTypes.StrokeStyle.Solid,
-              icon: SquareIcon,
+              icon: StrokeStyleSolidIcon,
             },
             {
               value: DrawableTypes.StrokeStyle.Dashed,
-              icon: SquareIcon,
+              icon: StrokeStyleDashedIcon,
             },
             {
               value: DrawableTypes.StrokeStyle.Dotted,
-              icon: SquareIcon,
+              icon: StrokeStyleDottedIcon,
             },
           ]}
           value={style.strokeStyle}
@@ -254,15 +267,15 @@ export function LayerControls() {
           options={[
             {
               value: DrawableTypes.Sloppiness.Low,
-              icon: SquareIcon,
+              icon: SloppinessArchitectIcon,
             },
             {
               value: DrawableTypes.Sloppiness.Medium,
-              icon: SquareIcon,
+              icon: SloppinessArtistIcon,
             },
             {
               value: DrawableTypes.Sloppiness.High,
-              icon: SquareIcon,
+              icon: SloppinessCartoonistIcon,
             },
           ]}
           value={style.sloppiness}
@@ -283,11 +296,11 @@ export function LayerControls() {
           options={[
             {
               value: DrawableTypes.Edges.Right,
-              icon: SquareIcon,
+              icon: EdgeSharpIcon,
             },
             {
               value: DrawableTypes.Edges.Angle,
-              icon: SquareIcon,
+              icon: EdgeRoundIcon,
             },
           ]}
           value={style.edges}
@@ -299,11 +312,11 @@ export function LayerControls() {
             changeObjectStyle(selectedObject.id, { edges: newValue });
           }}
         />
-      </PropertyGroup>
+      </PropertyGroup> */}
 
       <PropertyGroup>
         <PropertyLabel>Opacity</PropertyLabel>
-      </PropertyGroup> */}
+      </PropertyGroup>
     </div>
   );
 }
