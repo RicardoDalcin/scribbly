@@ -22,9 +22,17 @@ export class GraphicEngine {
   private callbacks: EngineCallbacks;
 
   private _isDragging = false;
-  private mouseDownButton: 'left' | 'middle' | 'right' | null = null;
-  private mouseDownPosition: Vec2 | null = null;
+  private mouseDown: {
+    button: 'left' | 'middle' | 'right';
+    position: Vec2;
+  } | null = null;
   private _editorMode: EditorMode = 'select';
+
+  private needsRedraw = false;
+  private isRedrawRunning = false;
+
+  private createdObject: Drawable | null = null;
+
   private camera: Camera;
 
   private objects = new Map<string, Drawable>();
@@ -39,7 +47,7 @@ export class GraphicEngine {
     this.canvas = canvas;
     this.container = container;
     this.callbacks = callbacks;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
 
     if (!ctx) {
       throw new Error('Canvas context is not available');
@@ -51,7 +59,10 @@ export class GraphicEngine {
     this.camera = new Camera(
       this.canvas.width,
       this.canvas.height,
-      window.devicePixelRatio
+      window.devicePixelRatio,
+      () => {
+        this.requestRedraw();
+      }
     );
     const unsubscribe = this.setupEvents();
 
@@ -60,10 +71,10 @@ export class GraphicEngine {
     };
 
     this.roughCanvas = rough.canvas(canvas);
-    this.draw();
+    this.requestRedraw();
   }
 
-  private draw() {
+  private _draw() {
     this.ctx.save();
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.camera.adjustRender(this.ctx);
@@ -71,6 +82,32 @@ export class GraphicEngine {
       return object.draw(this.roughCanvas);
     });
     this.ctx.restore();
+  }
+
+  private requestRedraw() {
+    this.needsRedraw = true;
+    if (!this.isRedrawRunning) {
+      this.isRedrawRunning = true;
+      requestAnimationFrame(() => {
+        this.loop();
+      });
+    }
+  }
+
+  private loop() {
+    if (this.needsRedraw) {
+      this._draw();
+      this.needsRedraw = false;
+    }
+
+    if (this.needsRedraw) {
+      requestAnimationFrame(() => {
+        this.loop();
+      });
+      return;
+    }
+
+    this.isRedrawRunning = false;
   }
 
   private get isDragging() {
@@ -91,27 +128,18 @@ export class GraphicEngine {
     this.callbacks.onChangeEditorMode(value);
   }
 
-  public zoomIn() {
-    this.camera.zoomIn();
+  public zoomAt(at: Vec2, deltaY: number) {
+    this.camera.zoomAt(at, deltaY);
     this.callbacks.onChangeZoom(this.camera.getZoom());
-    this.draw();
-  }
-
-  public zoomOut() {
-    this.camera.zoomOut();
-    this.callbacks.onChangeZoom(this.camera.getZoom());
-    this.draw();
   }
 
   public setZoom(newZoom: number) {
     this.camera.setZoom(newZoom);
     this.callbacks.onChangeZoom(newZoom);
-    this.draw();
   }
 
   public pan(delta: Vec2) {
     this.camera.pan(delta);
-    this.draw();
   }
 
   public changeEditorMode(newMode: EditorMode) {
@@ -130,7 +158,7 @@ export class GraphicEngine {
 
     object.style = { ...object.style, ...newStyle };
     this.callbacks.onChangeSelectedObject(object);
-    this.draw();
+    this.requestRedraw();
   }
 
   public destroy() {
@@ -191,13 +219,17 @@ export class GraphicEngine {
   }
 
   private getWheelEvent(e: WheelEvent) {
-    const direction = e.deltaY > 0 ? 'down' : 'up';
     const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const ctrlKey = isMacOS ? e.metaKey : e.ctrlKey;
     const shiftKey = e.shiftKey;
 
+    const x = e.clientX - this.canvas.offsetLeft;
+    const y = e.clientY - this.canvas.offsetTop;
+    const position = Vec2.create(x, y);
+
     return {
-      direction,
+      deltaY: e.deltaY,
+      position,
       modifiers: {
         ctrlKey,
         shiftKey,
@@ -208,7 +240,7 @@ export class GraphicEngine {
   private onKeyDown(event: KeyboardEvent) {
     const options = this.getKeyboardEvent(event);
 
-    if (this.mouseDownButton) {
+    if (this.mouseDown) {
       return;
     }
 
@@ -230,8 +262,7 @@ export class GraphicEngine {
   private onMouseDown(e: MouseEvent) {
     const options = this.getMouseEvent(e);
 
-    this.mouseDownButton = options.button;
-    this.mouseDownPosition = options.position;
+    this.mouseDown = { button: options.button, position: options.position };
 
     if (options.button === 'right') {
       return;
@@ -243,36 +274,47 @@ export class GraphicEngine {
   }
 
   private onMouseMove(e: MouseEvent) {
-    if (!this.mouseDownButton) {
+    if (!this.mouseDown) {
       return;
     }
 
     const options = this.getMouseEvent(e);
 
-    if (this.mouseDownButton === 'right') {
+    if (this.mouseDown.button === 'right') {
       return;
     }
 
-    if (this.mouseDownButton === 'middle') {
+    if (this.mouseDown.button === 'middle') {
       return;
     }
 
     if (this.isDragging) {
-      this.camera.pan(options.movement);
-      this.draw();
+      this.camera.pan(Vec2.mulScalar(options.movement, -1));
       return;
+    }
+
+    if (this.editorMode === 'rectangle') {
+      const position = this.camera.viewportToWorld(options.position);
+      const distance = Vec2.distance(position, this.mouseDown.position);
+
+      if (!this.createdObject) {
+        if (distance < 10) {
+          return;
+        }
+
+        // this.makeRectangle();
+      }
     }
   }
 
   private onMouseUp(e: MouseEvent) {
     const options = this.getMouseEvent(e);
 
-    if (options.button !== this.mouseDownButton) {
+    if (options.button !== this.mouseDown?.button) {
       return;
     }
 
-    this.mouseDownButton = null;
-    this.mouseDownPosition = null;
+    this.mouseDown = null;
 
     if (options.button === 'right') {
       return;
@@ -292,7 +334,7 @@ export class GraphicEngine {
     const object = new Rect(newId, Vec2.create(position.x, position.y), 50, 50);
     this.objects.set(newId, object);
     this.callbacks.onChangeSelectedObject(object);
-    this.draw();
+    this.requestRedraw();
   }
 
   private onWheel(e: WheelEvent) {
@@ -301,11 +343,8 @@ export class GraphicEngine {
     if (options.modifiers.ctrlKey) {
       e.preventDefault();
 
-      if (options.direction === 'up') {
-        this.zoomIn();
-      } else {
-        this.zoomOut();
-      }
+      const position = this.camera.viewportToWorld(options.position);
+      this.zoomAt(position, options.deltaY);
     }
   }
 

@@ -22,4 +22,10 @@ export class Vec2 {
   static mulScalar(a: Vec2, scalar: number) {
     return new Vec2(a.x * scalar, a.y * scalar);
   }
+
+  static distance(a: Vec2, b: Vec2) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 }
