@@ -1,10 +1,10 @@
-import type { RoughCanvas } from 'roughjs/bin/canvas';
-import { Camera } from './entities/Camera';
-import { Vec2 } from './math/matrix';
-import type { EditorMode } from './types';
-import rough from 'roughjs';
-import type { Drawable } from './drawables';
-import { Rect } from './drawables/rect';
+import type { RoughCanvas } from "roughjs/bin/canvas";
+import { Camera } from "./entities/Camera";
+import { Vec2 } from "./math/matrix";
+import type { EditorMode } from "./types";
+import rough from "roughjs";
+import type { Drawable } from "./drawables";
+import { type ToolId, Tools, type Tool } from "./tools";
 
 type EngineCallbacks = {
   onChangeEditorMode: (newEditorMode: EditorMode) => void;
@@ -19,19 +19,19 @@ export class GraphicEngine {
   private container: HTMLElement;
   private roughCanvas: RoughCanvas;
 
+  private tools: Map<ToolId, Tool>;
+  private selectedTool: Tool | null = null;
   private callbacks: EngineCallbacks;
 
   private _isDragging = false;
   private mouseDown: {
-    button: 'left' | 'middle' | 'right';
+    button: "left" | "middle" | "right";
     position: Vec2;
   } | null = null;
-  private _editorMode: EditorMode = 'select';
+  private _editorMode: EditorMode = "select";
 
   private needsRedraw = false;
   private isRedrawRunning = false;
-
-  private createdObject: Drawable | null = null;
 
   private camera: Camera;
 
@@ -47,10 +47,10 @@ export class GraphicEngine {
     this.canvas = canvas;
     this.container = container;
     this.callbacks = callbacks;
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext("2d", { alpha: false });
 
     if (!ctx) {
-      throw new Error('Canvas context is not available');
+      throw new Error("Canvas context is not available");
     }
 
     this.ctx = ctx;
@@ -69,6 +69,24 @@ export class GraphicEngine {
     this._destroy = () => {
       unsubscribe();
     };
+
+    this.tools = new Map(
+      Tools.map((tool) => {
+        const instance = new tool({
+          onCreateObject: (object) => {
+            this.onCreateObject(object);
+          },
+          requestRedraw: () => {
+            this.requestRedraw();
+          },
+          cameraPan: (delta) => {
+            this.camera.pan(delta);
+          },
+        });
+
+        return [instance.id, instance];
+      })
+    );
 
     this.roughCanvas = rough.canvas(canvas);
     this.requestRedraw();
@@ -117,6 +135,12 @@ export class GraphicEngine {
   private set isDragging(value: boolean) {
     this._isDragging = value;
     this.callbacks.onChangeIsDragging(value);
+
+    if (value) {
+      this.selectedTool = this.tools.get("hand") ?? null;
+    } else {
+      this.selectedTool = this.tools.get(this.editorMode as ToolId) ?? null;
+    }
   }
 
   private get editorMode() {
@@ -126,6 +150,7 @@ export class GraphicEngine {
   private set editorMode(value: EditorMode) {
     this._editorMode = value;
     this.callbacks.onChangeEditorMode(value);
+    this.selectedTool = this.tools.get(value as ToolId) ?? null;
   }
 
   public zoomAt(at: Vec2, deltaY: number) {
@@ -148,7 +173,7 @@ export class GraphicEngine {
 
   public changeObjectStyle(
     objectId: string,
-    newStyle: Partial<Drawable['style']>
+    newStyle: Partial<Drawable["style"]>
   ) {
     const object = this.objects.get(objectId);
 
@@ -173,8 +198,8 @@ export class GraphicEngine {
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
 
-    this.canvas.style.width = width + 'px';
-    this.canvas.style.height = height + 'px';
+    this.canvas.style.width = width + "px";
+    this.canvas.style.height = height + "px";
     this.canvas.width = width * window.devicePixelRatio;
     this.canvas.height = height * window.devicePixelRatio;
     this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -183,7 +208,7 @@ export class GraphicEngine {
   }
 
   private getKeyboardEvent(e: KeyboardEvent) {
-    const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isMacOS = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
     const ctrlKey = isMacOS ? e.metaKey : e.ctrlKey;
     const shiftKey = e.shiftKey;
     const key = e.key;
@@ -198,20 +223,22 @@ export class GraphicEngine {
   }
 
   private getMouseEvent(e: MouseEvent) {
-    const BUTTON_TYPES = ['left', 'middle', 'right'] as const;
+    const BUTTON_TYPES = ["left", "middle", "right"] as const;
     const button = BUTTON_TYPES[e.button];
-    const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isMacOS = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
     const ctrlKey = isMacOS ? e.metaKey : e.ctrlKey;
     const shiftKey = e.shiftKey;
 
     const x = e.clientX - this.canvas.offsetLeft;
     const y = e.clientY - this.canvas.offsetTop;
-    const position = Vec2.create(x, y);
+    const viewportPosition = Vec2.create(x, y);
+    const worldPosition = this.camera.viewportToWorld(viewportPosition);
     const movement = Vec2.create(e.movementX, e.movementY);
 
     return {
       button,
-      position,
+      viewportPosition,
+      worldPosition,
       movement,
       modifiers: {
         ctrlKey,
@@ -221,7 +248,7 @@ export class GraphicEngine {
   }
 
   private getWheelEvent(e: WheelEvent) {
-    const isMacOS = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isMacOS = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
     const ctrlKey = isMacOS ? e.metaKey : e.ctrlKey;
     const shiftKey = e.shiftKey;
 
@@ -246,7 +273,7 @@ export class GraphicEngine {
       return;
     }
 
-    if (options.key === ' ' && !options.modifiers.ctrlKey) {
+    if (options.key === " " && !options.modifiers.ctrlKey) {
       event.preventDefault();
       this.isDragging = true;
     }
@@ -255,7 +282,7 @@ export class GraphicEngine {
   private onKeyUp(event: KeyboardEvent) {
     const options = this.getKeyboardEvent(event);
 
-    if (options.key === ' ') {
+    if (options.key === " ") {
       event.preventDefault();
       this.isDragging = false;
     }
@@ -264,23 +291,21 @@ export class GraphicEngine {
   private onMouseDown(e: MouseEvent) {
     const options = this.getMouseEvent(e);
 
-    this.mouseDown = { button: options.button, position: options.position };
+    this.mouseDown = {
+      button: options.button,
+      position: options.viewportPosition,
+    };
 
-    if (options.button === 'right') {
-      return;
+    if (this.mouseDown.button === "middle") {
+      this.isDragging = true;
     }
 
-    if (options.button === 'middle') {
-      return;
-    }
+    this.selectedTool?.onMouseDown(options);
   }
 
-  private makeRectangle(position: Vec2, width: number, height: number) {
-    const newId = this.uid();
-    const object = new Rect(newId, position, width, height);
-    this.objects.set(newId, object);
+  private onCreateObject(object: Drawable) {
+    this.objects.set(object.id, object);
     this.callbacks.onChangeSelectedObject(object);
-    return object;
   }
 
   private onMouseMove(e: MouseEvent) {
@@ -289,45 +314,7 @@ export class GraphicEngine {
     }
 
     const options = this.getMouseEvent(e);
-
-    if (this.mouseDown.button === 'right') {
-      return;
-    }
-
-    if (this.mouseDown.button === 'middle') {
-      return;
-    }
-
-    if (this.isDragging) {
-      this.camera.pan(Vec2.mulScalar(options.movement, -1));
-      return;
-    }
-
-    if (this.editorMode === 'rectangle') {
-      const position = this.camera.viewportToWorld(options.position);
-      const mouseDownPosition = this.camera.viewportToWorld(
-        this.mouseDown.position
-      );
-      const distance = Vec2.distance(position, mouseDownPosition);
-
-      const width = Math.abs(mouseDownPosition.x - position.x);
-      const height = Math.abs(mouseDownPosition.y - position.y);
-
-      if (!this.createdObject) {
-        if (distance < 10) {
-          return;
-        }
-
-        this.createdObject = this.makeRectangle(position, width, height);
-      } else {
-        const width = Math.abs(mouseDownPosition.x - position.x);
-        const height = Math.abs(mouseDownPosition.y - position.y);
-        this.createdObject.width = width;
-        this.createdObject.height = height;
-      }
-
-      this.requestRedraw();
-    }
+    this.selectedTool?.onMouseMove(options);
   }
 
   private onMouseUp(e: MouseEvent) {
@@ -337,24 +324,12 @@ export class GraphicEngine {
       return;
     }
 
+    if (options.button === "middle") {
+      this.isDragging = false;
+    }
+
     this.mouseDown = null;
-
-    if (options.button === 'right') {
-      return;
-    }
-
-    if (options.button === 'middle') {
-      return;
-    }
-
-    if (this.isDragging) {
-      return;
-    }
-
-    if (this.editorMode === 'rectangle') {
-      this.createdObject = null;
-      return;
-    }
+    this.selectedTool?.onMouseUp(options);
   }
 
   private onWheel(e: WheelEvent) {
@@ -397,22 +372,22 @@ export class GraphicEngine {
       this.onWheel(e);
     };
 
-    window.addEventListener('resize', onResize);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('wheel', onWheel, { passive: false });
-    this.canvas.addEventListener('mousedown', onMouseDown);
-    this.canvas.addEventListener('mousemove', onMouseMove);
-    this.canvas.addEventListener('mouseup', onMouseUp);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    this.canvas.addEventListener("mousedown", onMouseDown);
+    this.canvas.addEventListener("mousemove", onMouseMove);
+    this.canvas.addEventListener("mouseup", onMouseUp);
 
     return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('wheel', onWheel);
-      this.canvas.removeEventListener('mousedown', onMouseDown);
-      this.canvas.removeEventListener('mousemove', onMouseMove);
-      this.canvas.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("wheel", onWheel);
+      this.canvas.removeEventListener("mousedown", onMouseDown);
+      this.canvas.removeEventListener("mousemove", onMouseMove);
+      this.canvas.removeEventListener("mouseup", onMouseUp);
     };
   }
 }
