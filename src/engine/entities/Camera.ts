@@ -28,11 +28,12 @@ export class Camera {
   }
 
   public pan(delta: Vec2) {
-    this.position = Vec2.add(
-      this.position,
-      Vec2.mulScalar(delta, 1 / this.zoom)
-    );
+    this.position = Vec2.add(this.position, this.viewportToWorldDelta(delta));
     this.requestRedraw();
+  }
+
+  public viewportToWorldDelta(viewportDelta: Vec2) {
+    return Vec2.mulScalar(viewportDelta, 1 / this.zoom);
   }
 
   private round(num: number) {

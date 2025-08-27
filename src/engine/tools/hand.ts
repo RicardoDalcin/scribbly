@@ -1,9 +1,9 @@
-import { Vec2 } from "../math/matrix";
-import type { MouseEventData } from "../types";
-import type { EngineCallbacks, Tool } from "./types";
+import { Vec2 } from '../math/matrix';
+import type { MouseEventData } from '../types';
+import type { EngineCallbacks, Tool } from './types';
 
 export class HandTool implements Tool {
-  public readonly id = "hand";
+  public readonly id = 'hand';
 
   private callbacks: EngineCallbacks;
   private mouseDownData: MouseEventData | null = null;
@@ -12,8 +12,10 @@ export class HandTool implements Tool {
     this.callbacks = callbacks;
   }
 
+  public draw() {}
+
   public onMouseDown(data: MouseEventData) {
-    if (data.button === "right") {
+    if (data.button === 'right') {
       return;
     }
 
@@ -26,7 +28,7 @@ export class HandTool implements Tool {
       return;
     }
 
-    this.callbacks.cameraPan(Vec2.mulScalar(data.movement, -1));
+    this.callbacks.cameraPan(Vec2.mulScalar(data.viewportMovement, -1));
   }
 
   public onMouseUp(data: MouseEventData) {

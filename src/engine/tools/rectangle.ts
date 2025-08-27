@@ -1,10 +1,10 @@
-import { Rect } from "../drawables/rect";
-import { Vec2 } from "../math/matrix";
-import type { MouseEventData } from "../types";
-import type { EngineCallbacks, Tool } from "./types";
+import { Rect } from '../drawables/rect';
+import { Vec2 } from '../math/matrix';
+import type { MouseEventData } from '../types';
+import type { EngineCallbacks, Tool } from './types';
 
 export class RectangleTool implements Tool {
-  public readonly id = "rectangle";
+  public readonly id = 'rectangle';
 
   private callbacks: EngineCallbacks;
   private mouseDownData: MouseEventData | null = null;
@@ -16,8 +16,10 @@ export class RectangleTool implements Tool {
     this.callbacks = callbacks;
   }
 
+  public draw() {}
+
   public onMouseDown(data: MouseEventData) {
-    if (data.button !== "left") {
+    if (data.button !== 'left') {
       return;
     }
 
@@ -40,17 +42,26 @@ export class RectangleTool implements Tool {
     const height = Math.abs(
       this.mouseDownData.worldPosition.y - data.worldPosition.y
     );
+    const x = Math.min(
+      this.mouseDownData.worldPosition.x,
+      data.worldPosition.x
+    );
+    const y = Math.min(
+      this.mouseDownData.worldPosition.y,
+      data.worldPosition.y
+    );
 
     if (!this.createdObject) {
       if (viewportDistance < this.MIN_SIZE_FOR_CREATION) {
         return;
       }
 
-      this.createdObject = this.makeShape(data.worldPosition, width, height);
+      this.createdObject = this.makeShape(Vec2.create(x, y), width, height);
       this.callbacks.requestRedraw();
       return;
     }
 
+    this.createdObject.position = Vec2.create(x, y);
     this.createdObject.width = width;
     this.createdObject.height = height;
     this.callbacks.requestRedraw();
@@ -73,6 +84,7 @@ export class RectangleTool implements Tool {
     const newId = this.uid();
     const object = new Rect(newId, position, width, height);
     this.callbacks.onCreateObject(object);
+    this.callbacks.onSelectObject(object);
     return object;
   }
 }

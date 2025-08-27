@@ -77,9 +77,9 @@ export function Toolbar() {
         fillOnActive
         icon={MousePointerIcon}
         onClick={() => {
-          changeEditorMode('select');
+          changeEditorMode('selection');
         }}
-        active={editorMode === 'select'}
+        active={editorMode === 'selection'}
         shortcut="1"
       />
       <ToolbarButton
